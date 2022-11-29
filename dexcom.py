@@ -4,6 +4,7 @@ from twilio.rest import Client
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+import pytz
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -36,23 +37,27 @@ def should_send_message(dex, time):
     except:
         if dex == None and time.minute % 15 == 0:
             return True
-
+    logger.info(f"should_send_message time_result: {time_result}")
+    logger.info(f"should_send_message data_result: {data_result}")
     return time_result and data_result
 
 
 def should_make_call(dex, time):
-    time_result, data_result = True, False
+    time_result, data_result = False, False
 
     if (time - dex.time).total_seconds() < 60:
         time_result = True
-    if dex.value <= 55 or dex.value >= 300:
+    if dex.value <= 55 or dex.value >= 350:
         data_result = True
+    logger.info(f"should_make_call time_result: {time_result}")
+    logger.info(f"should_make_call data_result: {data_result}")
 
     return time_result and data_result
 
 
 def build_message_body(dex):
-    reading_time = dex.time.strftime("%I:%M %p on %B %d")
+    reading_time = dex.time.astimezone(pytz.timezone(
+        config('LOCAL_TIMEZONE'))).strftime("%I:%M %p on %B %d")
     return (
         f"Blood sugar update:\n"
         f"Current reading is {dex.value}\n"
