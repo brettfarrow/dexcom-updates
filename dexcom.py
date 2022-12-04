@@ -23,12 +23,14 @@ def should_send_message(dex, time):
     time_result, data_result = False, False
 
     try:
-        if (time - dex.time).total_seconds() < 60:
+        if (time - dex.time).total_seconds() <= 119:
             time_result = True
 
         if dex.value <= 80:
             data_result = True
         if dex.value <= 100 and dex.trend_description == "falling":
+            data_result = True
+        if dex.value >= 325:
             data_result = True
         if dex.trend_description == "falling quickly":
             data_result = True
@@ -45,7 +47,7 @@ def should_send_message(dex, time):
 def should_make_call(dex, time):
     time_result, data_result = False, False
 
-    if (time - dex.time).total_seconds() < 60:
+    if (time - dex.time).total_seconds() <= 119:
         time_result = True
     if dex.value <= 55 or dex.value >= 350:
         data_result = True
