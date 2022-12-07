@@ -37,20 +37,31 @@ def should_send_message(dex, time):
         if dex.trend_description == "rising quickly":
             data_result = True
     except:
-        if dex == None and time.minute % 15 == 0:
+        if time.minute % 15 == 0:
             return True
+
     logger.info(f"should_send_message time_result: {time_result}")
     logger.info(f"should_send_message data_result: {data_result}")
+
     return time_result and data_result
 
 
 def should_make_call(dex, time):
     time_result, data_result = False, False
 
-    if (time - dex.time).total_seconds() <= 119:
-        time_result = True
-    if dex.value <= 55 or dex.value >= 350:
-        data_result = True
+    try:
+        if (time - dex.time).total_seconds() <= 119:
+            # Call every 10 minutes if a high alert instead of a low
+            if dex.value <= 55:
+                time_result = True
+            if dex.value >= 350 and time.minute % 10 == 0:
+                time_result = True
+        if dex.value <= 55 or dex.value >= 350:
+            data_result = True
+
+    except:
+        return False
+
     logger.info(f"should_make_call time_result: {time_result}")
     logger.info(f"should_make_call data_result: {data_result}")
 
