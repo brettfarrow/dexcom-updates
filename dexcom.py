@@ -19,26 +19,50 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def should_send_message(dex, time):
-    time_result, data_result = False, False
+class FakeDexcom(object):
+    pass
 
+
+def write_timestamp(dex):
+    # Convert the time to an ISO-8601 timestamp
+    timestamp = dex.time.isoformat()
+
+    # Write the timestamp to a file called "timestamp.txt"
+    with open("timestamp.txt", "w") as f:
+        f.write(timestamp)
+
+
+def read_timestamp():
+    # Read the timestamp from the file and return it as a time object
     try:
-        if (time - dex.time).total_seconds() <= 119:
-            time_result = True
-
-        if dex.value <= 80:
-            data_result = True
-        if dex.value <= 100 and dex.trend_description == "falling":
-            data_result = True
-        if dex.value >= 325:
-            data_result = True
-        if dex.trend_description == "falling quickly":
-            data_result = True
-        if dex.trend_description == "rising quickly":
-            data_result = True
+        with open('timestamp.txt', 'r') as f:
+            data = f.read()
+            return datetime.fromisoformat(data)
     except:
-        if time.minute % 15 == 0:
-            return True
+        FIRST_TIMESTAMP = '1970-01-01T00:00:00'
+        placeholder = FakeDexcom()
+        placeholder.time = datetime.fromisoformat(FIRST_TIMESTAMP)
+        write_timestamp(placeholder)
+        return FIRST_TIMESTAMP
+
+
+def should_send_message(dex):
+    time_result, data_result = False, False
+    last_reading = read_timestamp()
+
+    if last_reading != dex.time:
+        time_result = True
+
+    if dex.value <= 80:
+        data_result = True
+    if dex.value <= 100 and dex.trend_description == "falling":
+        data_result = True
+    if dex.value >= 300:
+        data_result = True
+    if dex.trend_description == "falling quickly":
+        data_result = True
+    if dex.trend_description == "rising quickly":
+        data_result = True
 
     logger.info(f"should_send_message time_result: {time_result}")
     logger.info(f"should_send_message data_result: {data_result}")
@@ -46,19 +70,18 @@ def should_send_message(dex, time):
     return time_result and data_result
 
 
-def should_make_call(dex, time):
+def should_make_call(dex):
     time_result, data_result = False, False
+    last_reading = read_timestamp()
 
+    # Call every reading for an urgent low, every 15 minutes for a high
     try:
-        if (time - dex.time).total_seconds() <= 119:
-            # Call every 10 minutes if a high alert instead of a low
-            if dex.value <= 55:
-                time_result = True
-            if dex.value >= 350 and time.minute % 10 == 0:
-                time_result = True
-        if dex.value <= 55 or dex.value >= 350:
-            data_result = True
-
+        if last_reading != dex.time:
+            time_result = True
+            if dex.value <= 55 or dex.value >= 300:
+                data_result = True
+                if dex.value >= 300 and datetime.now().minute % 15 != 0:
+                    time_result = False
     except:
         return False
 
@@ -81,14 +104,13 @@ def build_message_body(dex):
 
 def main():
     try:
-        start_time = datetime.now()
         dexcom = Dexcom(
             config("DEXCOM_USERNAME"),
             config("DEXCOM_PASSWORD")
         )
         bg = dexcom.get_current_glucose_reading()
 
-        if should_send_message(bg, start_time):
+        if should_send_message(bg):
             result = build_message_body(bg)
             print(result)
 
@@ -104,7 +126,7 @@ def main():
         else:
             logger.info("Did not meet condition to send, exiting successfully")
 
-        if should_make_call(bg, start_time):
+        if should_make_call(bg):
             try:
                 client
             except NameError:
@@ -118,6 +140,7 @@ def main():
             )
         else:
             logger.info("Did not meet condition to call, exiting successfully")
+        write_timestamp(bg)
     except BaseException as err:
         logger.error(f"Unexpected {err=}, {type(err)=}")
         raise
