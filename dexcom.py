@@ -7,14 +7,13 @@ from datetime import datetime
 import pytz
 
 logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
+    format="%(asctime)s %(levelname)-8s %(message)s",
     level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
-handler = RotatingFileHandler(
-    'dexcom.log', maxBytes=1000000, backupCount=3)
+handler = RotatingFileHandler("dexcom.log", maxBytes=1000000, backupCount=3)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -35,11 +34,11 @@ def write_timestamp(dex):
 def read_timestamp():
     # Read the timestamp from the file and return it as a time object
     try:
-        with open('timestamp.txt', 'r') as f:
+        with open("timestamp.txt", "r") as f:
             data = f.read()
             return datetime.fromisoformat(data)
     except:
-        FIRST_TIMESTAMP = '1970-01-01T00:00:00'
+        FIRST_TIMESTAMP = "1970-01-01T00:00:00"
         placeholder = FakeDexcom()
         placeholder.time = datetime.fromisoformat(FIRST_TIMESTAMP)
         write_timestamp(placeholder)
@@ -92,22 +91,19 @@ def should_make_call(dex):
 
 
 def build_message_body(dex):
-    reading_time = dex.time.astimezone(pytz.timezone(
-        config('LOCAL_TIMEZONE'))).strftime("%I:%M %p on %B %d")
+    reading_time = dex.time.astimezone(
+        pytz.timezone(config("LOCAL_TIMEZONE"))
+    ).strftime("%I:%M %p on %b %d")
     return (
-        f"Blood sugar update:\n"
-        f"Current reading is {dex.value}\n"
-        f"Trend is {dex.trend_description} ({dex.trend_arrow})\n"
-        f"Reading taken at {reading_time}"
+        f"Dexcom @ {reading_time}:\n"
+        f"Reading is {dex.value}\n"
+        f"Trend is {dex.trend_description} ({dex.trend_arrow})"
     )
 
 
 def main():
     try:
-        dexcom = Dexcom(
-            config("DEXCOM_USERNAME"),
-            config("DEXCOM_PASSWORD")
-        )
+        dexcom = Dexcom(config("DEXCOM_USERNAME"), config("DEXCOM_PASSWORD"))
         bg = dexcom.get_current_glucose_reading()
 
         if should_send_message(bg):
@@ -119,7 +115,7 @@ def main():
             message = client.messages.create(
                 to=config("TWILIO_TO_NUMBER"),
                 from_=config("TWILIO_FROM_NUMBER"),
-                body=result
+                body=result,
             )
             # Use result for just the SMS, message for Twilio API response
             logger.info(f"Sending message, result: {message}")
@@ -130,8 +126,7 @@ def main():
             try:
                 client
             except NameError:
-                client = Client(config("TWILIO_ACCOUNT"),
-                                config("TWILIO_TOKEN"))
+                client = Client(config("TWILIO_ACCOUNT"), config("TWILIO_TOKEN"))
 
             client.calls.create(
                 url=config("TWIML_LOCATION_URL"),
