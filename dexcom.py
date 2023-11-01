@@ -24,7 +24,7 @@ class FakeDexcom(object):
 
 def write_timestamp(dex):
     # Convert the time to an ISO-8601 timestamp
-    timestamp = dex.time.isoformat()
+    timestamp = dex.datetime.isoformat()
 
     # Write the timestamp to a file called "timestamp.txt"
     with open("timestamp.txt", "w") as f:
@@ -40,7 +40,7 @@ def read_timestamp():
     except:
         FIRST_TIMESTAMP = "1970-01-01T00:00:00"
         placeholder = FakeDexcom()
-        placeholder.time = datetime.fromisoformat(FIRST_TIMESTAMP)
+        placeholder.datetime = datetime.fromisoformat(FIRST_TIMESTAMP)
         write_timestamp(placeholder)
         return FIRST_TIMESTAMP
 
@@ -49,7 +49,7 @@ def should_send_message(dex):
     time_result, data_result = False, False
     last_reading = read_timestamp()
 
-    if last_reading != dex.time:
+    if last_reading != dex.datetime:
         time_result = True
 
     if dex.value <= 80:
@@ -75,7 +75,7 @@ def should_make_call(dex):
 
     # Call every reading for an urgent low, every 15 minutes for a high
     try:
-        if last_reading != dex.time:
+        if last_reading != dex.datetime:
             time_result = True
             if dex.value <= 55 or dex.value >= 300:
                 data_result = True
@@ -91,7 +91,7 @@ def should_make_call(dex):
 
 
 def build_message_body(dex):
-    reading_time = dex.time.astimezone(
+    reading_time = dex.datetime.astimezone(
         pytz.timezone(config("LOCAL_TIMEZONE"))
     ).strftime("%I:%M %p on %b %d")
     return (
